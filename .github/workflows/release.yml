@@ -1,9 +1,13 @@
 name: Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
+
+permissions:
+  contents: write
 
 jobs:
   Android:
@@ -11,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Env
         uses: ./.github/actions/setup
@@ -22,9 +26,11 @@ jobs:
         shell: bash
         run: |
           cd android
-          echo ${{ secrets.KEYSTORE_STORE_FILE_BASE64 }} | base64 --decode > app/${{ secrets.KEYSTORE_STORE_FILE }}
-          ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.KEYSTORE_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.KEYSTORE_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.KEYSTORE_KEY_PASSWORD }}'
-          rm -f app/${{ secrets.KEYSTORE_STORE_FILE }}
+          ./gradlew assembleRelease \
+          -PMYAPP_UPLOAD_STORE_FILE='debug.keystore' \
+          -PMYAPP_UPLOAD_KEY_ALIAS='androiddebugkey' \
+          -PMYAPP_UPLOAD_STORE_PASSWORD='android' \
+          -PMYAPP_UPLOAD_KEY_PASSWORD='android'
 
       # Push tag to GitHub if package.json version's tag is not tagged
       - name: Get package version
@@ -152,7 +158,7 @@ jobs:
     needs: [Android]
     steps:
       - name: Check out git repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Artifacts
         uses: actions/download-artifact@v4
@@ -174,9 +180,8 @@ jobs:
           echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          body_path: ./publish/changeLog.md
           prerelease: false
           draft: false
           tag_name: v${{ env.PACKAGE_VERSION }}
